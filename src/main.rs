@@ -1,54 +1,41 @@
-/*
-
-uint64_t add64_r1_r1_r2(uint64_t r1, uint64_t r2) {
-    return r1 + r2;
-}
-
-So the syntax is:
-
-uint64_t <opname>_<dest_reg>(_<op_reg>)*(arguments) {
-
-}
-
-*/
-
 use smallvec::{smallvec, SmallVec};
 
 pub const X86_REGS: [&'static str; 16] = [
-    "rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13",
-    "r14", "r15",
+    "RAX", "RCX", "RDX", "RBX", "RSP", "RBP", "RSI", "RDI", "R8", "R9", "R10", "R11", "R12", "R13",
+    "R14", "R15",
 ];
 pub const ARM_REGS: [&'static str; 16] = [
-    "x9", "x3", "x2", "x19", "sp", "x20", "x1", "x0", "x4", "x5", "x10", "x11", "x21", "x22",
-    "x23", "x24",
+    "X9", "X3", "X2", "X19", "X25", "X20", "X1", "X0", "X4", "X5", "X10", "X11", "X21", "X22",
+    "X23", "X24",
 ];
-
 
 #[derive(Debug, Clone, Copy)]
 enum Operand {
     Register(u8), // r#
-    Immediate,    // imm    x7
-    Memory,       // mem    x6
-    Flags,        // flags  x27
-    Rip,          // pc     x6
+    Imm,          // x26
+    Src,          // mem source x7
+    Dst,          // mem dest x6
+    Org,          // x6
+    Flags,        // x27
 }
 impl Operand {
     pub fn operand_name(&self) -> &'static str {
         match self {
             Operand::Register(index) => X86_REGS[*index as usize],
-            Operand::Immediate => "imm",
-            Operand::Memory => "mem",
-            Operand::Flags => "flags",
-            Operand::Rip => "pc",
+            Operand::Imm => "IMM",
+            Operand::Src => "Tsrc",
+            Operand::Dst => "Tdst",
+            Operand::Org => "Torg",
+            Operand::Flags => "FLAGS",
         }
     }
     pub fn convention_name(&self) -> &'static str {
         match self {
             Operand::Register(index) => ARM_REGS[*index as usize],
-            Operand::Immediate => "x7",
-            Operand::Memory => "x6",
-            Operand::Flags => "x27",
-            Operand::Rip => "x6",
+            Operand::Imm => "X27",
+            Operand::Dst | Operand::Org => "X6",
+            Operand::Src => "X7",
+            Operand::Flags => "X27",
         }
     }
 }
@@ -65,7 +52,7 @@ struct Function {
     pub body: String,
 }
 impl Function {
-    pub fn emit(mut self, dest: &mut String) {
+    pub fn emit(self, dest: &mut String) {
         let mut x86_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
         let mut arm_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
         let mut cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
@@ -111,8 +98,73 @@ impl Function {
                 dest.push_str(reg);
                 dest.push_str(">, ");
             }
-            dest.pop();
-            dest.pop();
+            if !self.arguments.is_empty() {
+                dest.pop();
+                dest.pop();
+            }
+            dest.push(')');
+            dest.push_str(&self.body);
+            dest.push('\n');
+        }
+    }
+    pub fn emit2(self, dest: &mut String) {
+        let mut x86_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
+        let mut arm_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
+        let mut cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
+        for (i, op) in self.operands.iter().enumerate() {
+            x86_regs.push(op.operand_name());
+            arm_regs.push(op.convention_name());
+            if let Operand::Register(reg_index) = op {
+                let mut found = false;
+                for (check_index, arg_indices) in cycling_map.iter_mut() {
+                    if *check_index == *reg_index {
+                        arg_indices.push(i as u8);
+                        found = true;
+                        break;
+                    }
+                }
+                if !found {
+                    cycling_map.push((*reg_index, smallvec![i as u8]));
+                }
+            }
+        }
+
+        for i in 0..16usize.pow(cycling_map.len() as u32) {
+            for (cycle_index, (_, arg_indices)) in cycling_map.iter().enumerate() {
+                let reg_index = (i >> (cycle_index * 4)) & 0b1111;
+                for &arg in arg_indices.iter() {
+                    x86_regs[arg as usize] = X86_REGS[reg_index];
+                    arm_regs[arg as usize] = ARM_REGS[reg_index];
+                }
+            }
+            dest.push_str("__attribute__(aarch64_custom_reg(\"");
+            dest.push_str(arm_regs[0]);
+            dest.push_str(": ");
+            for reg in arm_regs[1..].iter() {
+                dest.push_str(reg);
+                dest.push_str(", ");
+            }
+            if !arm_regs[1..].is_empty() {
+                dest.pop();
+                dest.pop();
+            }
+            dest.push_str("\")) ");
+            dest.push_str("uint64_t ");
+            dest.push_str(&self.name);
+            for reg in x86_regs.iter() {
+                dest.push('_');
+                dest.push_str(reg);
+            }
+            dest.push_str("(");
+            for arg in self.arguments.iter() {
+                dest.push_str("uint64_t ");
+                dest.push_str(&arg);
+                dest.push_str(", ");
+            }
+            if !self.arguments.is_empty() {
+                dest.pop();
+                dest.pop();
+            }
             dest.push(')');
             dest.push_str(&self.body);
             dest.push('\n');
@@ -178,14 +230,17 @@ impl Parser {
     }
     // Operands are
     fn parse_name_operand(arg: &str) -> Operand {
-        let first_char = arg.chars().next().unwrap();
+        let mut chars = arg.chars();
+        let first_char = chars.next().unwrap().to_ascii_lowercase();
+        let second_char = chars.next().unwrap().to_ascii_lowercase();
 
-        match first_char {
-            'r' => Operand::Register(arg[1..].parse().unwrap()),
-            'i' => Operand::Immediate,
-            'm' => Operand::Memory,
-            'f' => Operand::Flags,
-            'p' => Operand::Rip,
+        match (first_char, second_char) {
+            ('r', _) => Operand::Register(arg[1..].parse().unwrap()),
+            ('i', _) => Operand::Imm,
+            ('t', 's') => Operand::Src,
+            ('t', 'd') => Operand::Dst,
+            ('t', 'o') => Operand::Org,
+            ('f', _) => Operand::Flags,
             _ => panic!("Invalid operand: {}", arg),
         }
     }
@@ -305,9 +360,8 @@ fn main() {
     result.push_str("#include <stdint.h>\n\n/*---------------AUTOGENERATED BY TILEGEN PROGRAM---------------*/\n\n");
 
     for func in functions {
-        func.emit(&mut result);
+        func.emit2(&mut result);
     }
 
     println!("{}", result);
-
 }
