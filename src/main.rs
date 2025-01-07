@@ -4,6 +4,10 @@ pub const X86_REGS: [&'static str; 16] = [
     "RAX", "RCX", "RDX", "RBX", "RSP", "RBP", "RSI", "RDI", "R8", "R9", "R10", "R11", "R12", "R13",
     "R14", "R15",
 ];
+pub const N_X86_REGS: [&'static str; 16] = [
+    "NRAX", "NRCX", "NRDX", "NRBX", "NRSP", "NRBP", "NRSI", "NRDI", "NR8", "NR9", "NR10", "NR11",
+    "NR12", "NR13", "NR14", "NR15",
+];
 pub const ARM_REGS: [&'static str; 16] = [
     "X9", "X3", "X2", "X19", "X25", "X20", "X1", "X0", "X4", "X5", "X10", "X11", "X21", "X22",
     "X23", "X24",
@@ -12,16 +16,18 @@ pub const ARM_REGS: [&'static str; 16] = [
 #[derive(Debug, Clone, Copy)]
 enum Operand {
     Register(u8), // r#
-    Imm,          // x26
-    Src,          // mem source x7
-    Dst,          // mem dest x6
-    Org,          // x6
-    Flags,        // x27
+    FixedRegister(u8),
+    Imm,   // x26
+    Src,   // mem source x7
+    Dst,   // mem dest x6
+    Org,   // x6
+    Flags, // x27
 }
 impl Operand {
     pub fn operand_name(&self) -> &'static str {
         match self {
             Operand::Register(index) => X86_REGS[*index as usize],
+            Operand::FixedRegister(index) => N_X86_REGS[*index as usize],
             Operand::Imm => "IMM",
             Operand::Src => "Tsrc",
             Operand::Dst => "Tdst",
@@ -32,6 +38,7 @@ impl Operand {
     pub fn convention_name(&self) -> &'static str {
         match self {
             Operand::Register(index) => ARM_REGS[*index as usize],
+            Operand::FixedRegister(index) => ARM_REGS[*index as usize],
             Operand::Imm => "X27",
             Operand::Dst | Operand::Org => "X6",
             Operand::Src => "X7",
@@ -228,6 +235,16 @@ impl Parser {
             self.loc += 1;
         }
     }
+
+    fn match_native_reg(name: &str) -> u8 {
+        for (i, reg) in X86_REGS.iter().enumerate() {
+            if name == *reg {
+                return i as u8;
+            }
+        }
+        panic!("Invalid register name: {}", name);
+    }
+
     // Operands are
     fn parse_name_operand(arg: &str) -> Operand {
         let mut chars = arg.chars();
@@ -236,6 +253,7 @@ impl Parser {
 
         match (first_char, second_char) {
             ('r', _) => Operand::Register(arg[1..].parse().unwrap()),
+            ('n', _) => Operand::FixedRegister(Self::match_native_reg(&arg[1..])),
             ('i', _) => Operand::Imm,
             ('t', 's') => Operand::Src,
             ('t', 'd') => Operand::Dst,
