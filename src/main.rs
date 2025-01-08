@@ -144,7 +144,7 @@ impl Function {
                     arm_regs[arg as usize] = ARM_REGS[reg_index];
                 }
             }
-            dest.push_str("__attribute__(aarch64_custom_reg(\"");
+            dest.push_str("__attribute__((aarch64_custom_reg(\"");
             dest.push_str(arm_regs[0]);
             dest.push_str(": ");
             for reg in arm_regs[1..].iter() {
@@ -155,7 +155,7 @@ impl Function {
                 dest.pop();
                 dest.pop();
             }
-            dest.push_str("\")) ");
+            dest.push_str("\"))) ");
             dest.push_str("uint64_t ");
             dest.push_str(&self.name);
             for reg in x86_regs.iter() {
