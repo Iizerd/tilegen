@@ -22,9 +22,9 @@ pub const NXMM_REGS: [&'static str; 16] = [
     "NXMM8", "NXMM9", "NXMM10", "NXMM11", "NXMM12", "NXMM13", "NXMM14", "NXMM15",
 ];
 // Add V registers mapping according to specifications
-pub const V_REGS: [&'static str; 16] = [
-    "V0", "V1", "V2", "V3", "V4", "V5", "V6", "V7", 
-    "V16", "V17", "V18", "V19", "V20", "V21", "V22", "V23",
+pub const Q_REGS: [&'static str; 16] = [
+    "Q0", "Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7", 
+    "Q16", "Q17", "Q18", "Q19", "Q20", "Q21", "Q22", "Q23",
 ];
 
 #[derive(Debug, Clone, Copy)]
@@ -38,10 +38,10 @@ enum Operand {
     Dst,   // mem dest x6
     Org,   // x6
     Flags, // x27
-    XImm,  // Vector immediate - V24
-    XSrc,  // Vector source - V25
-    XDst,  // Vector destination - V27
-    XOrg,  // Vector original - V26
+    XImm,  // Vector immediate - Q24
+    XSrc,  // Vector source - Q25
+    XDst,  // Vector destination - Q27
+    XOrg,  // Vector original - Q26
 }
 
 impl Operand {
@@ -66,16 +66,16 @@ impl Operand {
         match self {
             Operand::Register(index) => ARM_REGS[*index as usize],
             Operand::FixedRegister(index) => ARM_REGS[*index as usize],
-            Operand::XmmRegister(index) => V_REGS[*index as usize],
-            Operand::FixedXmmRegister(index) => V_REGS[*index as usize],
+            Operand::XmmRegister(index) => Q_REGS[*index as usize],
+            Operand::FixedXmmRegister(index) => Q_REGS[*index as usize],
             Operand::Imm => "X26",
             Operand::Dst | Operand::Org => "X6",
             Operand::Src => "X7",
             Operand::Flags => "X27",
-            Operand::XImm => "V24",
-            Operand::XSrc => "V25",
-            Operand::XOrg => "V26",
-            Operand::XDst => "V27",
+            Operand::XImm => "Q24",
+            Operand::XSrc => "Q25",
+            Operand::XOrg => "Q26",
+            Operand::XDst => "Q27",
         }
     }
 }
@@ -133,7 +133,7 @@ impl Function {
                         },
                         Operand::XmmRegister(_) => {
                             x86_regs[arg as usize] = XMM_REGS[reg_index];
-                            arm_regs[arg as usize] = V_REGS[reg_index];
+                            arm_regs[arg as usize] = Q_REGS[reg_index];
                         },
                         _ => {}
                     }
@@ -151,12 +151,12 @@ impl Function {
             dest.push_str(">(");
             for (arg, reg) in self.arguments.iter().zip(arm_regs[1..].iter()) {
                 // Determine the type based on the register
-                let arg_type = if reg.starts_with("V") {
+                let arg_type = if reg.starts_with("Q") {
                     // Fix: Use string reference comparison correctly
-                    if *reg == "V24" || *reg == "V25" || *reg == "V26" || *reg == "V27" {
-                        "__m128 " // For special vector registers
+                    if *reg == "Q24" || *reg == "Q25" || *reg == "Q26" || *reg == "Q27" {
+                        "int64x2_t " // For special vector registers
                     } else {
-                        "__m128 " // For normal V registers
+                        "int64x2_t " // For normal Q registers
                     }
                 } else {
                     "uint64_t " // For X registers
@@ -212,7 +212,7 @@ impl Function {
                         },
                         Operand::XmmRegister(_) => {
                             x86_regs[arg as usize] = XMM_REGS[reg_index];
-                            arm_regs[arg as usize] = V_REGS[reg_index];
+                            arm_regs[arg as usize] = Q_REGS[reg_index];
                         },
                         _ => {}
                     }
@@ -246,7 +246,7 @@ impl Function {
                     Operand::XImm | 
                     Operand::XSrc | 
                     Operand::XDst | 
-                    Operand::XOrg => "__m128 ",
+                    Operand::XOrg => "int64x2_t ",
                     _ => "uint64_t "
                 };
                 dest.push_str(arg_type);
@@ -322,7 +322,7 @@ impl Parser {
     pub fn to_next_function(&mut self) {
         while !self.at_end() {
             if self.skip_until_string("uint64_t") 
-               || self.skip_until_string("__m128") 
+               || self.skip_until_string("int64x2_t") 
                || self.skip_until_string("__mm128") {
                 break;
             }
@@ -435,9 +435,9 @@ impl Parser {
         if self.skip_until_string("uint64_t") {
             return_type = "uint64_t".to_string();
             self.expect_string("uint64_t");
-        } else if self.skip_until_string("__m128") {
-            return_type = "__m128".to_string();
-            self.expect_string("__m128");
+        } else if self.skip_until_string("int64x2_t") {
+            return_type = "int64x2_t".to_string();
+            self.expect_string("int64x2_t");
         } else if self.skip_until_string("__mm128") {
             return_type = "__mm128".to_string();
             self.expect_string("__mm128");
@@ -488,7 +488,7 @@ impl Parser {
             if ch.is_alphanumeric() || '_' == ch {
                 buffer.push(ch);
             } else if !buffer.is_empty() {
-                if buffer == "uint64_t" || buffer == "__m128" || buffer == "__mm128" {
+                if buffer == "uint64_t" || buffer == "int64x2_t" || buffer == "__mm128" {
                     in_type = true;
                 } else if in_type {
                     result.arguments.push(buffer.clone());
@@ -554,7 +554,7 @@ fn main() {
 
     let mut result = String::with_capacity(20000);
 
-    result.push_str("#include <stdint.h>\n#include \"EFLAG.h\"\n#include <immintrin.h>\n/*---------------AUTOGENERATED BY TILEGEN PROGRAM---------------*/\n\n");
+    result.push_str("#include <stdint.h>\n#include \"EFLAG.h\"\n#include \"simd_types.h\"\n\n/*---------------AUTOGENERATED BY TILEGEN PROGRAM---------------*/\n\n");
 
     for func in functions {
         func.emit2(&mut result);
