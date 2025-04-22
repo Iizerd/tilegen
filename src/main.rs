@@ -113,9 +113,9 @@ impl Operand {
             Operand::Org => "Torg",
             Operand::Flags => "FLAGS",
             Operand::XImm(_) => "XImm",
-            Operand::XSrc(_) => "XTsrc",
-            Operand::XDst(_) => "XTdst",
-            Operand::XOrg(_) => "XTorg",
+            Operand::XSrc(_) => "Xsrc",
+            Operand::XDst(_) => "Xdst",
+            Operand::XOrg(_) => "Xorg",
         }
     }
     
