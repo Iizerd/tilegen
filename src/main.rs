@@ -273,14 +273,18 @@ impl Function {
     pub fn emit2(self, dest: &mut String) {
         let mut x86_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
         let mut arm_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
-        let mut cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
+        
+        // Split the cycling map into two separate maps: one for Register and one for VectorRegister
+        let mut reg_cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
+        let mut vec_cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
+        
         for (i, op) in self.operands.iter().enumerate() {
             x86_regs.push(op.operand_name());
             arm_regs.push(op.convention_name());
             match op {
                 Operand::Register(reg_index) => {
                     let mut found = false;
-                    for (check_index, arg_indices) in cycling_map.iter_mut() {
+                    for (check_index, arg_indices) in reg_cycling_map.iter_mut() {
                         if *check_index == *reg_index {
                             arg_indices.push(i as u8);
                             found = true;
@@ -288,12 +292,12 @@ impl Function {
                         }
                     }
                     if !found {
-                        cycling_map.push((*reg_index, smallvec![i as u8]));
+                        reg_cycling_map.push((*reg_index, smallvec![i as u8]));
                     }
                 },
                 Operand::VectorRegister(reg_index, _) => {
                     let mut found = false;
-                    for (check_index, arg_indices) in cycling_map.iter_mut() {
+                    for (check_index, arg_indices) in vec_cycling_map.iter_mut() {
                         if *check_index == *reg_index {
                             arg_indices.push(i as u8);
                             found = true;
@@ -301,75 +305,81 @@ impl Function {
                         }
                     }
                     if !found {
-                        cycling_map.push((*reg_index, smallvec![i as u8]));
+                        vec_cycling_map.push((*reg_index, smallvec![i as u8]));
                     }
                 },
                 _ => {}
             }
         }
-
-        for i in 0..16usize.pow(cycling_map.len() as u32) {
-            for (cycle_index, (_, arg_indices)) in cycling_map.iter().enumerate() {
-                let reg_index = (i >> (cycle_index * 4)) & 0b1111;
+        
+        // Calculate total combinations for both register types
+        let reg_combs = 16usize.pow(reg_cycling_map.len() as u32);
+        let vec_combs = 16usize.pow(vec_cycling_map.len() as u32);
+        
+        for reg_i in 0..reg_combs {
+            // Update register operands
+            for (cycle_index, (_, arg_indices)) in reg_cycling_map.iter().enumerate() {
+                let reg_index = (reg_i >> (cycle_index * 4)) & 0b1111;
                 for &arg in arg_indices.iter() {
-                    match self.operands[arg as usize] {
-                        Operand::Register(_) => {
-                            x86_regs[arg as usize] = X86_REGS[reg_index];
-                            arm_regs[arg as usize] = ARM_REGS[reg_index];
-                        },
-                        Operand::VectorRegister(_, _) => {
-                            x86_regs[arg as usize] = XMM_REGS[reg_index];
-                            arm_regs[arg as usize] = Q_REGS[reg_index];
-                        },
-                        _ => {}
-                    }
+                    x86_regs[arg as usize] = X86_REGS[reg_index];
+                    arm_regs[arg as usize] = ARM_REGS[reg_index];
                 }
             }
-            dest.push_str("__attribute__((aarch64_custom_reg(\"");
-            dest.push_str(arm_regs[0]);
-            dest.push_str(": ");
-            for reg in arm_regs[1..].iter() {
-                dest.push_str(reg);
-                dest.push_str(", ");
-            }
-            if !arm_regs[1..].is_empty() {
-                dest.pop();
-                dest.pop();
-            }
-            dest.push_str("\"))) ");
-            dest.push_str(&self.return_type);
-            dest.push(' ');
-            dest.push_str(&self.name);
-            for reg in x86_regs.iter() {
-                dest.push('_');
-                dest.push_str(reg);
-            }
-            dest.push_str("(");
-            for (i, arg) in self.arguments.iter().enumerate() {
-                // Get the type from the argument_types collection
-                let arg_type = if i < self.argument_types.len() {
-                    self.argument_types[i].to_type_string()
-                } else {
-                    // Fallback to operand type if available
-                    if i + 1 < self.operands.len() {
+            
+            for vec_i in 0..vec_combs {
+                // Update vector register operands
+                for (cycle_index, (_, arg_indices)) in vec_cycling_map.iter().enumerate() {
+                    let reg_index = (vec_i >> (cycle_index * 4)) & 0b1111;
+                    for &arg in arg_indices.iter() {
+                        x86_regs[arg as usize] = XMM_REGS[reg_index];
+                        arm_regs[arg as usize] = Q_REGS[reg_index];
+                    }
+                }
+                
+                // Generate code for this combination
+                dest.push_str("__attribute__((aarch64_custom_reg(\"");
+                dest.push_str(arm_regs[0]);
+                dest.push_str(": ");
+                for reg in arm_regs[1..].iter() {
+                    dest.push_str(reg);
+                    dest.push_str(", ");
+                }
+                if !arm_regs[1..].is_empty() {
+                    dest.pop();
+                    dest.pop();
+                }
+                dest.push_str("\"))) ");
+                dest.push_str(&self.return_type);
+                dest.push(' ');
+                dest.push_str(&self.name);
+                for reg in x86_regs.iter() {
+                    dest.push('_');
+                    dest.push_str(reg);
+                }
+                dest.push_str("(");
+                for (i, arg) in self.arguments.iter().enumerate() {
+                    // Get the type from the argument_types collection
+                    let arg_type = if i < self.argument_types.len() {
+                        self.argument_types[i].to_type_string()
+                    } else if i + 1 < self.operands.len() {
                         self.operands[i+1].get_type().to_type_string()
                     } else {
-                        "uint64_t" // Ultimate fallback
-                    }
-                };
-                
-                dest.push_str(arg_type);
-                dest.push(' ');
-                dest.push_str(&arg);
-                dest.push_str(", ");
+                        "uint64_t" // Fallback
+                    };
+                    
+                    dest.push_str(arg_type);
+                    dest.push(' ');
+                    dest.push_str(&arg);
+                    dest.push_str(", ");
+                }
+                if !self.arguments.is_empty() {
+                    dest.pop();
+                    dest.pop();
+                }
+                dest.push(')');
+                dest.push_str(&self.body);
+                dest.push('\n');
             }
-            if !self.arguments.is_empty() {
-                dest.pop();
-                dest.pop();
-            }
-            dest.push(')');
-            dest.push_str(&self.body);
-            dest.push('\n');
         }
     }
 }
