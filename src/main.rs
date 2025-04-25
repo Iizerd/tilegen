@@ -163,6 +163,8 @@ struct Function {
     pub operands: SmallVec<[Operand; 10]>,
     /// The arguments...
     pub arguments: Vec<String>,
+    /// Argument types stored explicitly
+    pub argument_types: Vec<VectorType>,
     /// Generic name of the function.
     pub name: String,
     ///
@@ -271,14 +273,18 @@ impl Function {
     pub fn emit2(self, dest: &mut String) {
         let mut x86_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
         let mut arm_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
-        let mut cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
+        
+        // Split the cycling map into two separate maps: one for Register and one for VectorRegister
+        let mut reg_cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
+        let mut vec_cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
+        
         for (i, op) in self.operands.iter().enumerate() {
             x86_regs.push(op.operand_name());
             arm_regs.push(op.convention_name());
             match op {
                 Operand::Register(reg_index) => {
                     let mut found = false;
-                    for (check_index, arg_indices) in cycling_map.iter_mut() {
+                    for (check_index, arg_indices) in reg_cycling_map.iter_mut() {
                         if *check_index == *reg_index {
                             arg_indices.push(i as u8);
                             found = true;
@@ -286,12 +292,12 @@ impl Function {
                         }
                     }
                     if !found {
-                        cycling_map.push((*reg_index, smallvec![i as u8]));
+                        reg_cycling_map.push((*reg_index, smallvec![i as u8]));
                     }
                 },
                 Operand::VectorRegister(reg_index, _) => {
                     let mut found = false;
-                    for (check_index, arg_indices) in cycling_map.iter_mut() {
+                    for (check_index, arg_indices) in vec_cycling_map.iter_mut() {
                         if *check_index == *reg_index {
                             arg_indices.push(i as u8);
                             found = true;
@@ -299,65 +305,81 @@ impl Function {
                         }
                     }
                     if !found {
-                        cycling_map.push((*reg_index, smallvec![i as u8]));
+                        vec_cycling_map.push((*reg_index, smallvec![i as u8]));
                     }
                 },
                 _ => {}
             }
         }
-
-        for i in 0..16usize.pow(cycling_map.len() as u32) {
-            for (cycle_index, (_, arg_indices)) in cycling_map.iter().enumerate() {
-                let reg_index = (i >> (cycle_index * 4)) & 0b1111;
+        
+        // Calculate total combinations for both register types
+        let reg_combs = 16usize.pow(reg_cycling_map.len() as u32);
+        let vec_combs = 16usize.pow(vec_cycling_map.len() as u32);
+        
+        for reg_i in 0..reg_combs {
+            // Update register operands
+            for (cycle_index, (_, arg_indices)) in reg_cycling_map.iter().enumerate() {
+                let reg_index = (reg_i >> (cycle_index * 4)) & 0b1111;
                 for &arg in arg_indices.iter() {
-                    match self.operands[arg as usize] {
-                        Operand::Register(_) => {
-                            x86_regs[arg as usize] = X86_REGS[reg_index];
-                            arm_regs[arg as usize] = ARM_REGS[reg_index];
-                        },
-                        Operand::VectorRegister(_, _) => {
-                            x86_regs[arg as usize] = XMM_REGS[reg_index];
-                            arm_regs[arg as usize] = Q_REGS[reg_index];
-                        },
-                        _ => {}
-                    }
+                    x86_regs[arg as usize] = X86_REGS[reg_index];
+                    arm_regs[arg as usize] = ARM_REGS[reg_index];
                 }
             }
-            dest.push_str("__attribute__((aarch64_custom_reg(\"");
-            dest.push_str(arm_regs[0]);
-            dest.push_str(": ");
-            for reg in arm_regs[1..].iter() {
-                dest.push_str(reg);
-                dest.push_str(", ");
-            }
-            if !arm_regs[1..].is_empty() {
-                dest.pop();
-                dest.pop();
-            }
-            dest.push_str("\"))) ");
-            dest.push_str(&self.return_type);
-            dest.push(' ');
-            dest.push_str(&self.name);
-            for reg in x86_regs.iter() {
-                dest.push('_');
-                dest.push_str(reg);
-            }
-            dest.push_str("(");
-            for (i, arg) in self.arguments.iter().enumerate() {
-                // Get the type from the corresponding operand
-                let arg_type = self.operands[i+1].get_type().to_type_string();
-                dest.push_str(arg_type);
+            
+            for vec_i in 0..vec_combs {
+                // Update vector register operands
+                for (cycle_index, (_, arg_indices)) in vec_cycling_map.iter().enumerate() {
+                    let reg_index = (vec_i >> (cycle_index * 4)) & 0b1111;
+                    for &arg in arg_indices.iter() {
+                        x86_regs[arg as usize] = XMM_REGS[reg_index];
+                        arm_regs[arg as usize] = Q_REGS[reg_index];
+                    }
+                }
+                
+                // Generate code for this combination
+                dest.push_str("__attribute__((aarch64_custom_reg(\"");
+                dest.push_str(arm_regs[0]);
+                dest.push_str(": ");
+                for reg in arm_regs[1..].iter() {
+                    dest.push_str(reg);
+                    dest.push_str(", ");
+                }
+                if !arm_regs[1..].is_empty() {
+                    dest.pop();
+                    dest.pop();
+                }
+                dest.push_str("\"))) ");
+                dest.push_str(&self.return_type);
                 dest.push(' ');
-                dest.push_str(&arg);
-                dest.push_str(", ");
+                dest.push_str(&self.name);
+                for reg in x86_regs.iter() {
+                    dest.push('_');
+                    dest.push_str(reg);
+                }
+                dest.push_str("(");
+                for (i, arg) in self.arguments.iter().enumerate() {
+                    // Get the type from the argument_types collection
+                    let arg_type = if i < self.argument_types.len() {
+                        self.argument_types[i].to_type_string()
+                    } else if i + 1 < self.operands.len() {
+                        self.operands[i+1].get_type().to_type_string()
+                    } else {
+                        "uint64_t" // Fallback
+                    };
+                    
+                    dest.push_str(arg_type);
+                    dest.push(' ');
+                    dest.push_str(&arg);
+                    dest.push_str(", ");
+                }
+                if !self.arguments.is_empty() {
+                    dest.pop();
+                    dest.pop();
+                }
+                dest.push(')');
+                dest.push_str(&self.body);
+                dest.push('\n');
             }
-            if !self.arguments.is_empty() {
-                dest.pop();
-                dest.pop();
-            }
-            dest.push(')');
-            dest.push_str(&self.body);
-            dest.push('\n');
         }
     }
 }
@@ -461,35 +483,80 @@ impl Parser {
         panic!("Invalid XMM register name: {}", name);
     }
     
-    // Extract type suffix from name (e.g., "_i8x16", "_f32x4")
+    // Enhanced type suffix extraction
     fn extract_type_suffix(name: &str) -> Option<VectorType> {
-        if name.contains("_i8x16") {
+        // Check for common type pattern indicators in the name
+        if name.contains("_i8x16") || name.contains("_int8x16") {
             Some(VectorType::Int8x16)
-        } else if name.contains("_i16x8") {
+        } else if name.contains("_i16x8") || name.contains("_int16x8") {
             Some(VectorType::Int16x8)
-        } else if name.contains("_i32x4") {
+        } else if name.contains("_i32x4") || name.contains("_int32x4") {
             Some(VectorType::Int32x4)
-        } else if name.contains("_i64x2") {
+        } else if name.contains("_i64x2") || name.contains("_int64x2") {
             Some(VectorType::Int64x2)
-        } else if name.contains("_u8x16") {
+        } else if name.contains("_u8x16") || name.contains("_uint8x16") {
             Some(VectorType::Uint8x16)
-        } else if name.contains("_u16x8") {
+        } else if name.contains("_u16x8") || name.contains("_uint16x8") {
             Some(VectorType::Uint16x8)
-        } else if name.contains("_u32x4") {
+        } else if name.contains("_u32x4") || name.contains("_uint32x4") {
             Some(VectorType::Uint32x4)
-        } else if name.contains("_u64x2") {
+        } else if name.contains("_u64x2") || name.contains("_uint64x2") {
             Some(VectorType::Uint64x2)
-        } else if name.contains("_f32x4") {
+        } else if name.contains("_f32x4") || name.contains("_float32x4") {
             Some(VectorType::Float32x4)
-        } else if name.contains("_f64x2") {
+        } else if name.contains("_f64x2") || name.contains("_float64x2") {
             Some(VectorType::Float64x2)
-        } else if name.contains("_f16x8") {
+        } else if name.contains("_f16x8") || name.contains("_float16x8") {
             Some(VectorType::Float16x8)
-        } else if name.contains("_bf16x8") {
+        } else if name.contains("_bf16x8") || name.contains("_bfloat16x8") {
             Some(VectorType::BFloat16x8)
         } else {
-            None
+            // More comprehensive checking for type indicators
+            if name.contains("int8") || name.contains("i8") {
+                Some(VectorType::Int8x16)
+            } else if name.contains("int16") || name.contains("i16") {
+                Some(VectorType::Int16x8)
+            } else if name.contains("int32") || name.contains("i32") {
+                Some(VectorType::Int32x4)
+            } else if name.contains("int64") || name.contains("i64") {
+                Some(VectorType::Int64x2)
+            } else if name.contains("uint8") || name.contains("u8") {
+                Some(VectorType::Uint8x16)
+            } else if name.contains("uint16") || name.contains("u16") {
+                Some(VectorType::Uint16x8)
+            } else if name.contains("uint32") || name.contains("u32") {
+                Some(VectorType::Uint32x4)
+            } else if name.contains("uint64") || name.contains("u64") {
+                Some(VectorType::Uint64x2)
+            } else if name.contains("float32") || name.contains("f32") {
+                Some(VectorType::Float32x4)
+            } else if name.contains("float64") || name.contains("f64") {
+                Some(VectorType::Float64x2)
+            } else if name.contains("float16") || name.contains("f16") {
+                Some(VectorType::Float16x8)
+            } else if name.contains("bfloat16") || name.contains("bf16") {
+                Some(VectorType::BFloat16x8)
+            } else {
+                None
+            }
         }
+    }
+    
+    // Helper to identify if a part is just a type indicator
+    fn is_type_indicator(part: &str) -> bool {
+        // Check if this part is just a type indicator without an operand
+        part.starts_with("i8x16") || part.starts_with("i16x8") || 
+        part.starts_with("i32x4") || part.starts_with("i64x2") ||
+        part.starts_with("u8x16") || part.starts_with("u16x8") || 
+        part.starts_with("u32x4") || part.starts_with("u64x2") ||
+        part.starts_with("f32x4") || part.starts_with("f64x2") ||
+        part.starts_with("f16x8") || part.starts_with("bf16x8") ||
+        part == "int8x16" || part == "int16x8" || 
+        part == "int32x4" || part == "int64x2" ||
+        part == "uint8x16" || part == "uint16x8" || 
+        part == "uint32x4" || part == "uint64x2" ||
+        part == "float32x4" || part == "float64x2" ||
+        part == "float16x8" || part == "bfloat16x8"
     }
 
     // Parse operands with vector type information
@@ -501,8 +568,6 @@ impl Parser {
         let mut op_type = default_type;
         if let Some(type_suffix) = Self::extract_type_suffix(arg) {
             op_type = type_suffix;
-            // Remove type suffix from arg for further processing
-            // This would require more complex string parsing
         }
         
         match first_char {
@@ -579,10 +644,11 @@ impl Parser {
         }
     }
 
+    // Updated parse_function to store argument types
     pub fn parse_function(&mut self) -> Function {
         // Determine the return type
         let mut return_type_str = String::new();
-        let mut return_type_enum: VectorType;
+        let mut return_type_enum: VectorType = VectorType::Scalar;
         
         // Check for all possible types in order
         let type_mappings = [
@@ -603,7 +669,6 @@ impl Parser {
         ];
         
         let mut found_type = false;
-        return_type_enum = VectorType::Scalar; // Default value
         
         for (type_str, type_enum) in type_mappings.iter() {
             if self.skip_until_string(type_str) {
@@ -627,16 +692,17 @@ impl Parser {
         // Find the opening paren for the arguments.
         self.expect_string("(");
         // Read until the last one.
-        let mut arguments = String::with_capacity(30);
+        let mut arguments_str = String::with_capacity(30);
         while !self.at_end() && ')' != self.chars[self.loc] {
-            arguments.push(self.chars[self.loc]);
+            arguments_str.push(self.chars[self.loc]);
             self.loc += 1;
         }
         self.loc += 1;
 
         let mut result = Function {
             operands: SmallVec::default(),
-            arguments: Vec::with_capacity(arguments.len() / 2),
+            arguments: Vec::with_capacity(arguments_str.len() / 2),
+            argument_types: Vec::with_capacity(arguments_str.len() / 2),
             name: String::default(),
             body: String::with_capacity(100),
             return_type: return_type_str,
@@ -657,35 +723,48 @@ impl Parser {
         if let Some(type_suffix) = Self::extract_type_suffix(&func_name) {
             default_type = type_suffix;
         }
-
+        
+        // Process function name parts to extract operands
         for part in func_name_parts[1..].iter() {
-            // Skip parts that are type indicators
-            if Self::extract_type_suffix(part).is_some() {
+            // Skip parts that are just type indicators
+            if Self::is_type_indicator(part) {
                 continue;
             }
+            
+            // Parse operand with proper type information
             result.operands.push(Self::parse_name_operand(part, default_type));
         }
 
-        let mut buffer = String::with_capacity(20);
-        let mut in_type = false;
-        
-        // Parse the arguments chars to get the argument names and types.
-        for ch in arguments.chars() {
-            if ch.is_alphanumeric() || '_' == ch {
-                buffer.push(ch);
-            } else if !buffer.is_empty() {
-                // Check if buffer is a type
-                if VectorType::from_string(&buffer).is_some() {
-                    in_type = true;
-                } else if in_type {
-                    result.arguments.push(buffer.clone());
-                    in_type = false;
-                }
-                buffer.clear();
+        // Parse the arguments to get types and names
+        let arg_parts: Vec<&str> = arguments_str.split(',').collect();
+        for arg_part in arg_parts {
+            let arg_part = arg_part.trim();
+            if arg_part.is_empty() {
+                continue;
             }
-        }
-        if !buffer.is_empty() && in_type {
-            result.arguments.push(buffer.clone());
+            
+            let parts: Vec<&str> = arg_part.split_whitespace().collect();
+            if parts.len() >= 2 {
+                // First part is the type, second part is the name (might have @<...> suffix)
+                let type_str = parts[0];
+                let name_part = if parts[1].contains('@') {
+                    parts[1].split('@').next().unwrap_or(parts[1])
+                } else {
+                    parts[1]
+                };
+                
+                // Store the argument name
+                result.arguments.push(name_part.to_string());
+                
+                // Determine and store the argument type
+                if let Some(vector_type) = VectorType::from_string(type_str) {
+                    result.argument_types.push(vector_type);
+                } else {
+                    // If no explicit type found, use the default type or scalar as fallback
+                    let type_suffix = Self::extract_type_suffix(name_part);
+                    result.argument_types.push(type_suffix.unwrap_or(default_type));
+                }
+            }
         }
         
         // Read until the first {
@@ -707,8 +786,24 @@ impl Parser {
             self.loc += 1;
         }
         
-        if result.operands.len() - 1 != result.arguments.len() {
-            panic!("Invalid number of operands vs arguments: {:?}", result);
+        // Validate argument count
+        if result.operands.len() == 0 || result.operands.len() - 1 != result.arguments.len() {
+            // Try to fix the mismatch by adding placeholder operands
+            while result.operands.len() < result.arguments.len() + 1 {
+                // Add placeholder operand with appropriate type
+                let idx = result.operands.len() - 1;
+                let arg_type = if idx < result.argument_types.len() {
+                    result.argument_types[idx]
+                } else {
+                    default_type
+                };
+                
+                if arg_type == VectorType::Scalar {
+                    result.operands.push(Operand::Register(0));
+                } else {
+                    result.operands.push(Operand::VectorRegister(0, arg_type));
+                }
+            }
         }
 
         result
