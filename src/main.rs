@@ -89,11 +89,11 @@ enum Operand {
     FixedRegister(u8),
     VectorRegister(u8, VectorType),  // xmm# with type
     FixedVectorRegister(u8, VectorType), // nxmm# with type
-    Imm,   // x26
+    Imm,   // X16
     Src,   // mem source x7
     Dst,   // mem dest x6
     Org,   // x6
-    Flags, // x27
+    Flags, // X17
     XImm(VectorType),  // Vector immediate with type
     XSrc(VectorType),  // Vector source with type
     XDst(VectorType),  // Vector destination with type
@@ -125,10 +125,10 @@ impl Operand {
             Operand::FixedRegister(index) => ARM_REGS[*index as usize],
             Operand::VectorRegister(index, _) => Q_REGS[*index as usize],
             Operand::FixedVectorRegister(index, _) => Q_REGS[*index as usize],
-            Operand::Imm => "X26",
+            Operand::Imm => "X16",
             Operand::Dst | Operand::Org => "X6",
             Operand::Src => "X7",
-            Operand::Flags => "X27",
+            Operand::Flags => "X17",
             Operand::XImm(_) => "Q24",
             Operand::XSrc(_) => "Q25",
             Operand::XOrg(_) => "Q26",
