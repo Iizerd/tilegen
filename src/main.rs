@@ -93,7 +93,7 @@ enum Operand {
     Src,   // mem source x7
     Dst,   // mem dest x6
     Org,   // x6
-    Flags, // X17
+    Flags, // X14
     XImm(VectorType),  // Vector immediate with type
     XSrc(VectorType),  // Vector source with type
     XDst(VectorType),  // Vector destination with type
@@ -128,7 +128,7 @@ impl Operand {
             Operand::Imm => "X16",
             Operand::Dst | Operand::Org => "X6",
             Operand::Src => "X7",
-            Operand::Flags => "X17",
+            Operand::Flags => "X14",
             Operand::XImm(_) => "Q24",
             Operand::XSrc(_) => "Q25",
             Operand::XOrg(_) => "Q26",
