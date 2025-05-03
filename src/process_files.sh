@@ -32,6 +32,7 @@ DIRECT_FILES=(
     "SETCC.c"
     "DIVSD.c"
     "ADDSS.c"
+    "DIVSS.c"
 )
 
 # Process files with special name mapping
