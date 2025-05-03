@@ -30,6 +30,7 @@ DIRECT_FILES=(
     "MULSD.c"
     "NEG.c"
     "SETCC.c"
+    "DIVSD.c"
 )
 
 # Process files with special name mapping
