@@ -31,6 +31,7 @@ DIRECT_FILES=(
     "NEG.c"
     "SETCC.c"
     "DIVSD.c"
+    "ADDSS.c"
 )
 
 # Process files with special name mapping
