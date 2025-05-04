@@ -33,6 +33,17 @@ DIRECT_FILES=(
     "DIVSD.c"
     "ADDSS.c"
     "DIVSS.c"
+    "MOVSS.c"
+    "MOVAPD.c"
+    "MULSS.c"
+    "SUBSD.c"
+    "SUBSS.c"
+    "XORPD.c"
+    "XORPS.c"
+    "PXOR.c"
+    "ANDPD.c"
+    "ANDPS.c"
+    "PAND.c"
 )
 
 # Process files with special name mapping
