@@ -44,6 +44,10 @@ DIRECT_FILES=(
     "ANDPD.c"
     "ANDPS.c"
     "PAND.c"
+    "COMISS.c"
+    "COMISD.c"
+    "UCOMISS.c"
+    "UCOMISD.c"
 )
 
 # Process files with special name mapping
