@@ -48,6 +48,8 @@ DIRECT_FILES=(
     "COMISD.c"
     "UCOMISS.c"
     "UCOMISD.c"
+    "REPMOVS.c"
+    "REPSTOS.c"
 )
 
 # Process files with special name mapping
