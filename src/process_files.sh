@@ -50,6 +50,8 @@ DIRECT_FILES=(
     "UCOMISD.c"
     "REPMOVS.c"
     "REPSTOS.c"
+    "RCL.c"
+    "ROR.c"
 )
 
 # Process files with special name mapping
