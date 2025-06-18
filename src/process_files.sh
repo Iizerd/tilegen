@@ -52,6 +52,7 @@ DIRECT_FILES=(
     "REPSTOS.c"
     "RCL.c"
     "ROR.c"
+    "MAXSS.c"
 )
 
 # Process files with special name mapping
