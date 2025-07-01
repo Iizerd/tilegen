@@ -53,6 +53,7 @@ DIRECT_FILES=(
     "RCL.c"
     "ROR.c"
     "MAXSS.c"
+    "MINSS.c"
 )
 
 # Process files with special name mapping
