@@ -76,6 +76,7 @@ DIRECT_FILES=(
     "REPNESCAS.c"
     "MOVDQU.c"
     "MOVUPS.c"
+    "SBB.c"
 )
 
 # Process files with special name mapping
