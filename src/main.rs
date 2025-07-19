@@ -308,6 +308,8 @@ impl Function {
                         vec_cycling_map.push((*reg_index, smallvec![i as u8]));
                     }
                 },
+                // Special operands like Xsrc, Xdst, etc. should NOT be added to cycling maps
+                // They have fixed register assignments
                 _ => {}
             }
         }
@@ -340,22 +342,39 @@ impl Function {
                 dest.push_str("__attribute__((aarch64_custom_reg(\"");
                 dest.push_str(arm_regs[0]);
                 dest.push_str(": ");
+                
+                // Build list of non-return-value registers for the attribute
+                // ALL operands after the return value should be included
                 for reg in arm_regs[1..].iter() {
                     dest.push_str(reg);
                     dest.push_str(", ");
                 }
-                if !arm_regs[1..].is_empty() {
+                if arm_regs.len() > 1 {
                     dest.pop();
                     dest.pop();
                 }
+                
                 dest.push_str("\"))) ");
                 dest.push_str(&self.return_type);
                 dest.push(' ');
                 dest.push_str(&self.name);
-                for reg in x86_regs.iter() {
-                    dest.push('_');
-                    dest.push_str(reg);
+                
+                // Build function name with operands
+                for (i, op) in self.operands.iter().enumerate() {
+                    match op {
+                        // Special operands get their fixed names in the function name
+                        Operand::XImm(_) => dest.push_str("_XImm"),
+                        Operand::XSrc(_) => dest.push_str("_Xsrc"),
+                        Operand::XDst(_) => dest.push_str("_Xdst"),
+                        Operand::XOrg(_) => dest.push_str("_Xorg"),
+                        // Other operands use their register names
+                        _ => {
+                            dest.push('_');
+                            dest.push_str(x86_regs[i]);
+                        }
+                    }
                 }
+                
                 dest.push_str("(");
                 for (i, arg) in self.arguments.iter().enumerate() {
                     // Get the type from the argument_types collection
@@ -644,7 +663,6 @@ impl Parser {
         }
     }
 
-    // Updated parse_function to store argument types
     pub fn parse_function(&mut self) -> Function {
         // Determine the return type
         let mut return_type_str = String::new();
@@ -786,29 +804,13 @@ impl Parser {
             self.loc += 1;
         }
         
-        // Validate argument count
-        if result.operands.len() == 0 || result.operands.len() - 1 != result.arguments.len() {
-            // Try to fix the mismatch by adding placeholder operands
-            while result.operands.len() < result.arguments.len() + 1 {
-                // Add placeholder operand with appropriate type
-                let idx = result.operands.len() - 1;
-                let arg_type = if idx < result.argument_types.len() {
-                    result.argument_types[idx]
-                } else {
-                    default_type
-                };
-                
-                if arg_type == VectorType::Scalar {
-                    result.operands.push(Operand::Register(0));
-                } else {
-                    result.operands.push(Operand::VectorRegister(0, arg_type));
-                }
-            }
-        }
+        // REMOVED: The incorrect validation logic that was adding extra operands
+        // The operands come from the function name, not from the argument count
 
         result
     }
     
+
     fn parse_functions(mut self) -> Vec<Function> {
         let mut result = Vec::default();
         while !self.at_end() {
