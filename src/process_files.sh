@@ -80,6 +80,7 @@ DIRECT_FILES=(
     "BSWAP.c"  
     "MOVSB.c"
     "PCMPEQD.c"
+    "MOVSQ.c"
 )
 
 # Process files with special name mapping
