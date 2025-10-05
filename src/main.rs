@@ -274,7 +274,10 @@ impl Function {
         let mut x86_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
         let mut arm_regs: SmallVec<[&'static str; 10]> = SmallVec::default();
         
-        // Split the cycling map into two separate maps: one for Register and one for VectorRegister
+        // Determine how many return operands based on return type
+        let num_return_operands = if self.return_type == "U2Struct" { 2 } else { 1 };
+        
+        // Split the cycling map into two separate maps
         let mut reg_cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
         let mut vec_cycling_map: SmallVec<[(u8, SmallVec<[u8; 10]>); 5]> = SmallVec::default();
         
@@ -308,18 +311,14 @@ impl Function {
                         vec_cycling_map.push((*reg_index, smallvec![i as u8]));
                     }
                 },
-                // Special operands like Xsrc, Xdst, etc. should NOT be added to cycling maps
-                // They have fixed register assignments
                 _ => {}
             }
         }
         
-        // Calculate total combinations for both register types
         let reg_combs = 16usize.pow(reg_cycling_map.len() as u32);
         let vec_combs = 16usize.pow(vec_cycling_map.len() as u32);
         
         for reg_i in 0..reg_combs {
-            // Update register operands
             for (cycle_index, (_, arg_indices)) in reg_cycling_map.iter().enumerate() {
                 let reg_index = (reg_i >> (cycle_index * 4)) & 0b1111;
                 for &arg in arg_indices.iter() {
@@ -329,7 +328,6 @@ impl Function {
             }
             
             for vec_i in 0..vec_combs {
-                // Update vector register operands
                 for (cycle_index, (_, arg_indices)) in vec_cycling_map.iter().enumerate() {
                     let reg_index = (vec_i >> (cycle_index * 4)) & 0b1111;
                     for &arg in arg_indices.iter() {
@@ -338,18 +336,25 @@ impl Function {
                     }
                 }
                 
-                // Generate code for this combination
+                // Build the attribute string with return registers
                 dest.push_str("__attribute__((aarch64_custom_reg(\"");
-                dest.push_str(arm_regs[0]);
+                
+                // For U2Struct, specify both return registers
+                if self.return_type == "U2Struct" {
+                    dest.push_str(arm_regs[0]);
+                    dest.push_str(", ");
+                    dest.push_str(arm_regs[1]);
+                } else {
+                    dest.push_str(arm_regs[0]);
+                }
                 dest.push_str(": ");
                 
-                // Build list of non-return-value registers for the attribute
-                // ALL operands after the return value should be included
-                for reg in arm_regs[1..].iter() {
+                // Add parameter registers (skip return registers)
+                for reg in arm_regs[num_return_operands..].iter() {
                     dest.push_str(reg);
                     dest.push_str(", ");
                 }
-                if arm_regs.len() > 1 {
+                if arm_regs.len() > num_return_operands {
                     dest.pop();
                     dest.pop();
                 }
@@ -362,12 +367,10 @@ impl Function {
                 // Build function name with operands
                 for (i, op) in self.operands.iter().enumerate() {
                     match op {
-                        // Special operands get their fixed names in the function name
                         Operand::XImm(_) => dest.push_str("_XImm"),
                         Operand::XSrc(_) => dest.push_str("_Xsrc"),
                         Operand::XDst(_) => dest.push_str("_Xdst"),
                         Operand::XOrg(_) => dest.push_str("_Xorg"),
-                        // Other operands use their register names
                         _ => {
                             dest.push('_');
                             dest.push_str(x86_regs[i]);
@@ -376,14 +379,16 @@ impl Function {
                 }
                 
                 dest.push_str("(");
+                
+                // Arguments should correspond to parameter operands only (skip return operands)
                 for (i, arg) in self.arguments.iter().enumerate() {
-                    // Get the type from the argument_types collection
+                    let op_idx = i + num_return_operands; // Offset by number of return operands
                     let arg_type = if i < self.argument_types.len() {
                         self.argument_types[i].to_type_string()
-                    } else if i + 1 < self.operands.len() {
-                        self.operands[i+1].get_type().to_type_string()
+                    } else if op_idx < self.operands.len() {
+                        self.operands[op_idx].get_type().to_type_string()
                     } else {
-                        "uint64_t" // Fallback
+                        "uint64_t"
                     };
                     
                     dest.push_str(arg_type);
