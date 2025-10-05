@@ -81,6 +81,7 @@ DIRECT_FILES=(
     "MOVSB.c"
     "PCMPEQD.c"
     "MOVSQ.c"
+    "XCHG.c"
 )
 
 # Process files with special name mapping

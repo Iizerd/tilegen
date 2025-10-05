@@ -476,6 +476,7 @@ impl Parser {
                self.skip_until_string("float64x2_t") ||
                self.skip_until_string("float16x8_t") ||
                self.skip_until_string("bfloat16x8_t") ||
+               self.skip_until_string("U2Struct") ||
                self.skip_until_string("__mm128") {
                 break;
             }
@@ -684,6 +685,8 @@ impl Parser {
             ("float16x8_t", VectorType::Float16x8),
             ("bfloat16x8_t", VectorType::BFloat16x8),
             ("__mm128", VectorType::Int64x2),  // Map __mm128 to int64x2_t for backward compatibility
+
+            ("U2Struct", VectorType::Scalar), 
         ];
         
         let mut found_type = false;
