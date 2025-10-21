@@ -89,6 +89,11 @@ DIRECT_FILES=(
     "PUNPCKLQDQ.c"
     "PUNPCKLDQ.c"
     "MOVHPS.c"
+    "MOVHLPS.c"
+    "MOVLPD.c"
+    "PSRLDQ.c"
+    "PSUBD.c"
+    "SHUFPD.c"
 )
 
 # Process files with special name mapping
