@@ -92,7 +92,7 @@ DIRECT_FILES=(
     "MOVHLPS.c"
     "MOVLPD.c"
     "PSRLDQ.c"
-    "PSUBD.c"
+    "PSUBQ.c"
     "SHUFPD.c"
     "PADD.c"
     "POR.c"
