@@ -94,6 +94,7 @@ DIRECT_FILES=(
     "PSRLDQ.c"
     "PSUBD.c"
     "SHUFPD.c"
+    "PADD.c"
 )
 
 # Process files with special name mapping
