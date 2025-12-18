@@ -97,6 +97,7 @@ DIRECT_FILES=(
     "PADD.c"
     "POR.c"
     "PACKUSWB.c"
+    "PANDN.c"
 )
 
 # Process files with special name mapping
