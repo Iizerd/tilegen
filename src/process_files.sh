@@ -79,7 +79,7 @@ DIRECT_FILES=(
     "SBB.c"
     "BSWAP.c"  
     "MOVSB.c"
-    "PCMPEQD.c"
+    "PCMPEQ.c"
     "MOVSQ.c"
     "XCHG.c"
     "PUNPCKLBW.c"
