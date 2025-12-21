@@ -103,6 +103,8 @@ DIRECT_FILES=(
     "PMINSW.c"
     "PSRLW.c"
     "PSUBD.c"
+    "PSUBUSB.c"
+    "PSUBUSW.c"
 )
 
 # Process files with special name mapping
