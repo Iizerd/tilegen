@@ -101,6 +101,7 @@ DIRECT_FILES=(
     "PCMPGT.c"
     "PINSRW.c"
     "PMINSW.c"
+    "PSRLW.c"
 )
 
 # Process files with special name mapping
