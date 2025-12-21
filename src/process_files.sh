@@ -105,6 +105,7 @@ DIRECT_FILES=(
     "PSUBD.c"
     "PSUBUSB.c"
     "PSUBUSW.c"
+    "PUNPCKHBW.c"
 )
 
 # Process files with special name mapping
