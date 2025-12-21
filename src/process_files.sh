@@ -102,6 +102,7 @@ DIRECT_FILES=(
     "PINSRW.c"
     "PMINSW.c"
     "PSRLW.c"
+    "PSUBD.c"
 )
 
 # Process files with special name mapping
