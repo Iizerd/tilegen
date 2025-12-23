@@ -112,6 +112,7 @@ DIRECT_FILES=(
     "ADDPD.c"
     "ADDPS.c"
     "SUBPD.c"
+    "SUBPS.c"
 )
 
 # Process files with special name mapping
