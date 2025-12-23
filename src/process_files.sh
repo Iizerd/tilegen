@@ -110,6 +110,7 @@ DIRECT_FILES=(
     "PUNPCKHDQ.c"
     "PUNPCKHQDQ.c"
     "ADDPD.c"
+    "ADDPS.c"
 )
 
 # Process files with special name mapping
