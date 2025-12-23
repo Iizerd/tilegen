@@ -119,6 +119,8 @@ DIRECT_FILES=(
     "DIVPS.c"
     "UNPCKLPD.c"
     "UNPCKLPS.c"
+    "UNPCKHPD.c"
+    "UNPCKHPS.c"
 )
 
 # Process files with special name mapping
