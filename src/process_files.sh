@@ -115,6 +115,8 @@ DIRECT_FILES=(
     "SUBPS.c"
     "MULPD.c
     "MULPS.c"
+    "DIVPD.c"
+    "DIVPS.c"
 )
 
 # Process files with special name mapping
