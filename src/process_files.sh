@@ -123,6 +123,7 @@ DIRECT_FILES=(
     "UNPCKHPS.c"
     "CVTDQ2PD.c"
     "CVTDQ2PS.c"
+    "CVTPD2PS.c"
 )
 
 # Process files with special name mapping
