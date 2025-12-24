@@ -124,7 +124,8 @@ DIRECT_FILES=(
     "CVTDQ2PD.c"
     "CVTDQ2PS.c"
     "CVTPD2PS.c"
-    "CVTTPD2DQ.c
+    "CVTTPD2DQ.c"
+    "CVTTPS2DQ.c"
 )
 
 # Process files with special name mapping
