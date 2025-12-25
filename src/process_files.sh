@@ -113,7 +113,7 @@ DIRECT_FILES=(
     "ADDPS.c"
     "SUBPD.c"
     "SUBPS.c"
-    "MULPD.c
+    "MULPD.c"
     "MULPS.c"
     "DIVPD.c"
     "DIVPS.c"
@@ -126,6 +126,8 @@ DIRECT_FILES=(
     "CVTPD2PS.c"
     "CVTTPD2DQ.c"
     "CVTTPS2DQ.c"
+    "MOVLHPS.c"
+    "MOVLPS.c" 
 )
 
 # Process files with special name mapping
