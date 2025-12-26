@@ -128,6 +128,7 @@ DIRECT_FILES=(
     "CVTTPS2DQ.c"
     "MOVLHPS.c"
     "MOVLPS.c" 
+    "SHUFPS.c"
 )
 
 # Process files with special name mapping
