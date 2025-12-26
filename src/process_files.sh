@@ -129,6 +129,7 @@ DIRECT_FILES=(
     "MOVLHPS.c"
     "MOVLPS.c" 
     "SHUFPS.c"
+    "PSHUFLW.c"
 )
 
 # Process files with special name mapping
