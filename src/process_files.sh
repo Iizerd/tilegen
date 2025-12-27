@@ -131,6 +131,9 @@ DIRECT_FILES=(
     "SHUFPS.c"
     "PSHUFLW.c"
     "CMPPS.c"
+    "PSLLW.c"
+    "PSLLD.c"
+    "PSLLQ.c"
 )
 
 # Process files with special name mapping
