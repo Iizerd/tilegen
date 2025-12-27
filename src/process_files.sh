@@ -136,6 +136,8 @@ DIRECT_FILES=(
     "PSLLQ.c"
     "PSRAW.c"
     "PSRAD.c"
+    "PSRLD.c"
+    "PSRLQ.c"
 )
 
 # Process files with special name mapping
