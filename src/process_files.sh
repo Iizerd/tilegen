@@ -141,6 +141,7 @@ DIRECT_FILES=(
     "PMULUDQ.c"
     "PEXTRW.c"
     "SHLD.c"
+    "MAXPS.c"
 )
 
 # Process files with special name mapping
