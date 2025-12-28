@@ -142,6 +142,7 @@ DIRECT_FILES=(
     "PEXTRW.c"
     "SHLD.c"
     "MAXPS.c"
+    "MINPS.c"
 )
 
 # Process files with special name mapping
