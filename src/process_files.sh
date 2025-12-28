@@ -140,6 +140,7 @@ DIRECT_FILES=(
     "PSRLQ.c"
     "PMULUDQ.c"
     "PEXTRW.c"
+    "SHLD.c"
 )
 
 # Process files with special name mapping
