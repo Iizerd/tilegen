@@ -143,6 +143,7 @@ DIRECT_FILES=(
     "SHLD.c"
     "MAXPS.c"
     "MINPS.c"
+    "CVTPS2PD.c"
 )
 
 # Process files with special name mapping
