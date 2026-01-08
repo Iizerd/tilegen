@@ -144,6 +144,7 @@ DIRECT_FILES=(
     "MAXPS.c"
     "MINPS.c"
     "CVTPS2PD.c"
+    "PSADBW.c"
 )
 
 # Process files with special name mapping
