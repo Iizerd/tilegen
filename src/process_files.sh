@@ -146,6 +146,7 @@ DIRECT_FILES=(
     "CVTPS2PD.c"
     "PSADBW.c"
     "PAVGB.c"
+    "PMULLW.c"
 )
 
 # Process files with special name mapping
