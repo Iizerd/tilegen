@@ -150,6 +150,7 @@ DIRECT_FILES=(
     "PMADDWD.c"
     "TZCNT.c"
     "MOVMSKPD.c"
+    "PSUBW.c"
 )
 
 # Process files with special name mapping
