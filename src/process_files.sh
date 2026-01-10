@@ -147,6 +147,7 @@ DIRECT_FILES=(
     "PSADBW.c"
     "PAVGB.c"
     "PMULLW.c"
+    "PMADDWD.c"
 )
 
 # Process files with special name mapping
