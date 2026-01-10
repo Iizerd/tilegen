@@ -151,6 +151,7 @@ DIRECT_FILES=(
     "TZCNT.c"
     "MOVMSKPD.c"
     "PSUBW.c"
+    "PMAXUB.c"
 )
 
 # Process files with special name mapping
