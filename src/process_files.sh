@@ -155,6 +155,7 @@ DIRECT_FILES=(
     "PSHUFHW.c"
     "PSUBB.c"
     "PMINUB.c"
+    "PMULHW.c"
 )
 
 # Process files with special name mapping
