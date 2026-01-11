@@ -152,6 +152,7 @@ DIRECT_FILES=(
     "MOVMSKPD.c"
     "PSUBW.c"
     "PMAXUB.c"
+    "PSHUFHW.c"
 )
 
 # Process files with special name mapping
