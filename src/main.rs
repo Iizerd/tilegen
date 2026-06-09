@@ -9,7 +9,7 @@ pub const N_X86_REGS: [&'static str; 16] = [
     "NR12", "NR13", "NR14", "NR15",
 ];
 pub const ARM_REGS: [&'static str; 16] = [
-    "X9", "X3", "X2", "X19", "X25", "X20", "X1", "X0", "X4", "X5", "X10", "X11", "X21", "X22",
+    "X9", "X3", "X2", "X19", "X15", "X20", "X1", "X0", "X4", "X5", "X10", "X11", "X21", "X22",
     "X23", "X24",
 ];
 pub const XMM_REGS: [&'static str; 16] = [
